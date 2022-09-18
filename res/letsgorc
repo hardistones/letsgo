@@ -1,0 +1,72 @@
+VERSION=1.0
+VERSION_STR="letsgo version $VERSION"
+
+PATH="/usr/local/opt/gnu-getopt/bin:$PATH"
+PATH="/opt/homebrew/opt/gnu-getopt/bin:$PATH"
+PATH="/usr/local/bin:$PATH"
+PATH="$HOME/.local/bin:$PATH"
+
+INSTALL_DIR=$HOME/.letsgo
+RESDIR=$INSTALL_DIR/res
+TEMPDIR=/tmp/.letsgo
+
+# variable data
+VARDIR=$INSTALL_DIR/var
+
+LOGDIR=$VARDIR/logs
+
+# Contains the name of projects as files,
+# with the corresponding directories inside.
+MEMENTO=$VARDIR/memento
+
+MAX_ALIAS_LENGTH=40
+
+LANGUAGE=en
+INSPIRE_FILE=inspire.${LANGUAGE}
+
+MAX_LOG_FILES=5
+
+
+mkdir -p $LOGDIR
+mkdir -p $TEMPDIR
+mkdir -p $MEMENTO
+
+if [[ -v $LANG ]]; then
+    LANGUAGE=${LANG:0:2}
+    [[ ! -z $LANGUAGE ]] && INSPIRE_FILE=inspire.${LANGUAGE}
+fi
+
+
+# Exhaust the inspire file while also randomly selecting lines.
+# Selected lines are saved to another file,
+# replacing the original inspire file when empty.
+motivate() {
+    if [[ -f $RESDIR/$INSPIRE_FILE ]]; then
+        local line=$(sort -uR $RESDIR/$INSPIRE_FILE | head -1)
+
+        if [[ -z $line ]]; then
+            mv -f $VARDIR/$INSPIRE_FILE $RESDIR
+            line=$(sort -uR $RESDIR/$INSPIRE_FILE | head -1)
+        fi
+        set +e
+        fgrep -v "$line" $RESDIR/$INSPIRE_FILE > $TEMPDIR/$INSPIRE_FILE
+        set -e
+        mv -f $TEMPDIR/$INSPIRE_FILE $RESDIR/$INSPIRE_FILE
+        echo "$line" >> $VARDIR/$INSPIRE_FILE
+        printf "%s\n" "$line"  # so we can print the '\n'
+    fi
+}
+
+
+# $1: The name of the script.
+limit_log_files() {
+    count=$($(which ls) -t $LOGDIR | egrep "${1}_.+.log" | wc -l)
+    totrim=$(($count - $MAX_LOG_FILES))
+
+    [[ $totrim -lt 1 ]] && return
+
+    for logfile in $($(which ls) -t $LOGDIR | egrep "${1}_.+.log" | tail -$totrim)
+    do
+        rm -f $LOGDIR/$logfile
+    done
+}
